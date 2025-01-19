@@ -254,7 +254,7 @@ object SupabaseAuthAPI {
         })
       }
 
-      def createUser(
+      override def createUser(
           email: String,
           password: String,
           metadata: Option[Map[String, String]]
@@ -267,13 +267,13 @@ object SupabaseAuthAPI {
           )
         )
 
-      def listUsers(): F[List[UserSession]] = {
+      override def listUsers(): F[List[UserSession]] = {
         val uri: Uri            = baseUrl / "admin" / "users"
         val request: Request[F] = Request[F](Method.GET, uri).withHeaders(buildHeaders)
         client.expect[List[UserSession]](request)
       }
 
-      def signUpWithEmail(
+      override def signUpWithEmail(
           email: String,
           password: String,
           redirectTo: Option[String],
@@ -298,7 +298,7 @@ object SupabaseAuthAPI {
       override def signInWithPhone(phone: String, password: String): F[Session] =
         postF(endpoint = "token")(PhonePasswordRequest(phone, password))
 
-      def sendMagicLinkEmail(
+      override def sendMagicLinkEmail(
           email: String,
           createUser: Boolean,
           redirectTo: Option[String]
