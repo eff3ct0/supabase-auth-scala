@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-package com.eff3ct.supabase.auth.api
+package com.eff3ct.supabase.auth.client
 
 import com.eff3ct.supabase.auth.api.response.Session
 

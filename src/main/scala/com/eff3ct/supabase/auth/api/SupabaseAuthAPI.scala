@@ -34,6 +34,7 @@ import org.http4s._
 import org.http4s.circe.CirceEntityDecoder._
 import org.http4s.circe._
 import org.http4s.client.Client
+import org.http4s.ember.client.EmberClientBuilder
 import org.typelevel.ci.CIString
 
 import java.util.UUID
@@ -82,8 +83,8 @@ trait SupabaseAuthAPI[F[_]] {
   def signUpWithEmail(
       email: String,
       password: String,
-      redirectTo: Option[String],
-      metadata: Option[Map[String, String]]
+      redirectTo: Option[String] = None,
+      metadata: Option[Map[String, String]] = None
   ): F[Session]
 
   /**
@@ -97,7 +98,11 @@ trait SupabaseAuthAPI[F[_]] {
    * @param redirectTo A URL or mobile address to send the user to after they are confirmed.
    * @return A `Session`
    */
-  def signInWithEmail(email: String, password: String, redirectTo: Option[String]): F[Session]
+  def signInWithEmail(
+      email: String,
+      password: String,
+      redirectTo: Option[String] = None
+  ): F[Session]
 
   /**
    * Signs up a new user with a phone number and password.
@@ -113,7 +118,7 @@ trait SupabaseAuthAPI[F[_]] {
   def signUpWithPhone(
       phone: String,
       password: String,
-      metadata: Option[Map[String, String]]
+      metadata: Option[Map[String, String]] = None
   ): F[Session]
 
   /**
@@ -139,7 +144,11 @@ trait SupabaseAuthAPI[F[_]] {
    * @param redirectTo A URL or mobile address to send the user to after they are confirmed.
    * @return Unit
    */
-  def sendMagicLinkEmail(email: String, createUser: Boolean, redirectTo: Option[String]): F[Unit]
+  def sendMagicLinkEmail(
+      email: String,
+      createUser: Boolean,
+      redirectTo: Option[String] = None
+  ): F[Unit]
 
   /**
    * Sends a mobile OTP to the user's phone number.
@@ -164,7 +173,7 @@ trait SupabaseAuthAPI[F[_]] {
    * @param redirectTo A URL or mobile address to send the user to after they are confirmed.
    * @return A `Session`
    */
-  def verifyMobileOtp(phone: String, token: String, redirectTo: Option[String]): F[Session]
+  def verifyMobileOtp(phone: String, token: String, redirectTo: Option[String] = None): F[Session]
 
   /**
    * Invites a user by email.
@@ -179,8 +188,8 @@ trait SupabaseAuthAPI[F[_]] {
    */
   def inviteUserByEmail(
       email: String,
-      redirectTo: Option[String],
-      metadata: Option[Map[String, String]]
+      redirectTo: Option[String] = None,
+      metadata: Option[Map[String, String]] = None
   ): F[UserSession]
 
   /**
@@ -238,6 +247,15 @@ object SupabaseAuthAPI {
   private def client[F[_]: Client]: Client[F] = implicitly[Client[F]]
 
   def apply[F[_]: SupabaseAuthAPI]: SupabaseAuthAPI[F] = implicitly[SupabaseAuthAPI[F]]
+
+  def create[F[_]: Async: ClientR](baseUrl: Uri, apiKey: String): Resource[F, SupabaseAuthAPI[F]] =
+    implicitly[ClientR[F]].map { client =>
+      implicit val c: Client[F] = client
+      build[F](baseUrl, apiKey)
+    }
+
+  def build[F[_]: Async: Client](baseUrl: Uri, apiKey: String): SupabaseAuthAPI[F] =
+    build[F](baseUrl, Map("apiKey" -> apiKey))
 
   def build[F[_]: Async: Client](baseUrl: Uri, headers: Map[String, String]): SupabaseAuthAPI[F] =
     new SupabaseAuthAPI[F] {
@@ -413,4 +431,27 @@ object SupabaseAuthAPI {
         client.expect[O](request)
       }
     }
+}
+
+object Example extends IOApp {
+
+  import SupabaseAuthAPI._
+
+  def run(args: List[String]): IO[ExitCode] = {
+    val baseUrl: Uri = Uri.unsafeFromString("http://localhost:54321/auth/v1/")
+    val apiKey: String =
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0"
+    val clientR: Resource[IO, Client[IO]] = EmberClientBuilder.default[IO].build
+    val user: IO[Session] =
+      clientR.use { client =>
+        implicit val c: Client[IO] = client
+        build[IO](baseUrl, apiKey)
+          .signUpWithEmail("test@gmail.com", "Admin123!")
+      }
+
+    for {
+      user <- user
+      _    <- IO(println(user))
+    } yield ExitCode.Success
+  }
 }

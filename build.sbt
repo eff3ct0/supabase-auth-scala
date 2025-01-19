@@ -18,6 +18,10 @@ lazy val root =
           circe.genericExtras,
           http4s.circe,
           http4s.dsl,
-          http4s.emberClient
+          http4s.emberClient,
+          /** Test */
+          Testing.scalaTest,
+          Testing.scalaTestFlatspec,
+          Testing.scalaCheck
         )
     )
