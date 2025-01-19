@@ -1,6 +1,6 @@
 # Supabase Auth
 
-[![Build Status](https://github.com/eff3ct/supabase-auth-scala/actions/workflows/ci.yml/badge.svg)](https://github.com/eff3ct0/supabase-auth-scala/actions/workflows/ci.yml)
+[![Release](https://github.com/eff3ct0/supabase-auth-scala/actions/workflows/release.yml/badge.svg)](https://github.com/eff3ct0/supabase-auth-scala/actions/workflows/release.yml)
 [![codecov](https://codecov.io/gh/eff3ct/supabase-auth-scala/branch/main/graph/badge.svg?token=0S0Z6Z1Z8Y)](https://codecov.io/gh/eff3ct0/supabase-auth-scala)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
