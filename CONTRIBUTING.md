@@ -17,8 +17,8 @@ Fork the repository on GitHub by clicking the "Fork" button at the top right of 
 Clone your fork to your local machine:
 
 ```sh
-git clone https://github.com/your-username/supabase-auth.git
-cd supabase-auth
+git clone https://github.com/your-username/supabase-auth-scala.git
+cd supabase-auth-scala
 ```
 
 ### 3. Create a Branch
