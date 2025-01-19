@@ -13,12 +13,12 @@ object SonatypePublish {
     ThisBuild / sonatypeCredentialHost := sonatypeCentralHost,
     ThisBuild / organization           := "com.eff3ct",
     ThisBuild / organizationName       := "eff3ct",
-    ThisBuild / homepage               := Some(url("https://github.com/eff3ct0/supabase-auth")),
+    ThisBuild / homepage               := Some(url("https://github.com/eff3ct0/supabase-auth-scala")),
     ThisBuild / licenses               := Seq("MIT" -> url("https://opensource.org/licenses/MIT")),
     ThisBuild / scmInfo := Some(
       ScmInfo(
-        browseUrl = url("https://github.com/eff3ct0/supabase-auth"),
-        connection = "scm:git:git@github.com:eff3ct0/supabase-auth.git"
+        browseUrl = url("https://github.com/eff3ct0/supabase-auth-scala"),
+        connection = "scm:git:git@github.com:eff3ct0/supabase-auth-scala.git"
       )
     ),
     ThisBuild / developers := List(
@@ -30,7 +30,7 @@ object SonatypePublish {
       )
     ),
     ThisBuild / sonatypeProjectHosting := Some(
-      GitHubHosting("eff3ct0", "supabase-auth", "hi@rafaelfernandez.dev")
+      GitHubHosting("eff3ct0", "supabase-auth-scala", "hi@rafaelfernandez.dev")
     )
   )
 

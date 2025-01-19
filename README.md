@@ -1,7 +1,7 @@
 # Supabase Auth
 
-[![Build Status](https://github.com/eff3ct/supabase-auth/actions/workflows/ci.yml/badge.svg)](https://github.com/eff3ct0/supabase-auth/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/eff3ct/supabase-auth/branch/main/graph/badge.svg?token=0S0Z6Z1Z8Y)](https://codecov.io/gh/eff3ct0/supabase-auth)
+[![Build Status](https://github.com/eff3ct/supabase-auth-scala/actions/workflows/ci.yml/badge.svg)](https://github.com/eff3ct0/supabase-auth-scala/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/eff3ct/supabase-auth-scala/branch/main/graph/badge.svg?token=0S0Z6Z1Z8Y)](https://codecov.io/gh/eff3ct0/supabase-auth-scala)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 Supabase Auth is a Scala library for interacting with the [Supabase Auth API](https://supabase.com/docs/guides/auth).
