@@ -24,14 +24,15 @@
 
 package com.eff3ct.supabase.auth.api
 
+import io.circe.Decoder
 import io.circe.generic.extras._
 
 import java.util.UUID
 
 object response {
 
-  private[response] implicit val config: Configuration =
-    Configuration.default.withSnakeCaseMemberNames
+  @ConfiguredJsonCodec
+  sealed trait Session
 
   @ConfiguredJsonCodec
   case class IdentityData(
@@ -66,6 +67,19 @@ object response {
       sub: UUID
   )
 
+  /**
+   * @param id The user's unique ID.
+   * @param aud The audience of the JWT.
+   * @param role The user's role.
+   * @param email The user's email address.
+   * @param phone The user's phone number.
+   * @param appMetadata The app metadata.
+   * @param userMetadata The user metadata.
+   * @param identities The user's identities.
+   * @param createdAt The timestamp of when the user was created.
+   * @param updatedAt The timestamp of when the user was last updated.
+   * @param isAnonymous Whether the user is anonymous.
+   */
   @ConfiguredJsonCodec
   case class UserSession(
       id: UUID,
@@ -79,7 +93,7 @@ object response {
       createdAt: String,
       updatedAt: String,
       isAnonymous: Boolean
-  )
+  ) extends Session
 
   /**
    * @param accessToken The access token that can be used to make authenticated requests to the API.
@@ -92,7 +106,7 @@ object response {
    * @param user The user session object.
    */
   @ConfiguredJsonCodec
-  case class Session(
+  case class TokenSession(
       accessToken: String,
       tokenType: String,
       expiresIn: Int,
@@ -101,6 +115,10 @@ object response {
       providerToken: Option[String],
       providerRefreshToken: Option[String],
       user: UserSession
-  )
+  ) extends Session
 
+  implicit val sessionDecoder: Decoder[Session] = Decoder.instance { c =>
+    if (c.downField("access_token").succeeded) c.as[TokenSession]
+    else c.as[UserSession]
+  }
 }

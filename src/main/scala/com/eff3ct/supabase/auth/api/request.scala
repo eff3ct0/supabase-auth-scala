@@ -24,7 +24,10 @@
 
 package com.eff3ct.supabase.auth.api
 
+import io.circe.generic.extras.ConfiguredJsonCodec
+
 object request {
+
   case class EmailPasswordRequest(
       email: String,
       password: String,
@@ -41,11 +44,14 @@ object request {
   case class InviteUserByEmailRequest(email: String, metadata: Option[Map[String, String]])
   case class RequestPasswordForEmailRequest(email: String)
 
-  case class UserAttributesRequest(
-      email: String,
-      password: String,
-      redirectTo: Option[String] = None,
-      metadata: Option[Map[String, String]] = None
+  @ConfiguredJsonCodec
+  case class ShouldSoftDeleteRequest(shouldSoftDelete: Boolean)
+
+  case class UserAttributesRequest[T](
+      email: Option[String] = None,
+      phone: Option[String] = None,
+      password: Option[String] = None,
+      metadata: Option[T] = None
   )
 
 }

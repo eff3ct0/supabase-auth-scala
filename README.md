@@ -6,11 +6,15 @@
 
 Supabase Auth is a Scala library for interacting with the [Supabase Auth API](https://supabase.com/docs/guides/auth).
 
+This Scala client follows the ideas of the official client [supabase/auth-py](https://github.com/supabase/auth-py)
+
 ## Getting Started
 
-To get started, you'll need to create a Supabase account and obtain an API key. You can sign up for a free Supabase account [here](https://app.supabase.io).
+To get started, you'll need to create a Supabase account and obtain an API key. You can sign up for a free Supabase
+account [here](https://app.supabase.io).
 
-Once you have your API key, you can use the Supabase Auth library to interact with the Supabase Auth API. Here's an example of how to create a user:
+Once you have your API key, you can use the Supabase Auth library to interact with the Supabase Auth API. Here's an
+example of how to create a user:
 
 ```scala
 import com.eff3ct.supabase.auth.client.SupabaseAuthClient
