@@ -117,8 +117,24 @@ object response {
       user: UserSession
   ) extends Session
 
+  @ConfiguredJsonCodec
+  case class NoneResponse(message: None.type = None)
+
   implicit val sessionDecoder: Decoder[Session] = Decoder.instance { c =>
     if (c.downField("access_token").succeeded) c.as[TokenSession]
     else c.as[UserSession]
+  }
+
+  trait As[I, O] {
+    def as(input: I): Option[O]
+  }
+
+  implicit val sessionAsTokenSession: As[Session, TokenSession] = {
+    case t: TokenSession => Some(t)
+    case _               => None
+  }
+
+  implicit class ImplicitAs[I](input: I) {
+    def /=>[O: As[I, *]]: Option[O] = implicitly[As[I, O]].as(input)
   }
 }

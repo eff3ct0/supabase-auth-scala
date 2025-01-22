@@ -42,7 +42,7 @@ object request {
   case class SendMobileOtpRequest(phone: String, createUser: Boolean)
   case class VerifyMobileOtpRequest(phone: String, token: String, `type`: String)
   case class InviteUserByEmailRequest(email: String, data: Option[Map[String, String]])
-  case class RequestPasswordForEmailRequest(email: String)
+  case class ResetPasswordForEmailRequest(email: String)
 
   @ConfiguredJsonCodec
   case class ShouldSoftDeleteRequest(shouldSoftDelete: Boolean)

@@ -25,11 +25,12 @@
 package com.eff3ct.supabase.auth.api
 
 import cats.effect._
+import cats.implicits.catsSyntaxApplicativeId
 import com.eff3ct.supabase.auth.api.request._
 import com.eff3ct.supabase.auth.api.response._
+import io.circe.Json
 import io.circe.generic.auto._
 import io.circe.syntax.EncoderOps
-import io.circe.{Encoder, Json}
 import org.http4s._
 import org.http4s.circe.CirceEntityDecoder._
 import org.http4s.circe._
@@ -52,6 +53,7 @@ trait SupabaseAuthAPI[F[_]] {
    * @param metadata Optional metadata to associate with the user.
    * @return A `UserSession`
    */
+  @deprecated("Use signUpX methods instead", "0.1.0")
   def createUser(
       email: String,
       password: String,
@@ -148,7 +150,7 @@ trait SupabaseAuthAPI[F[_]] {
       email: String,
       createUser: Boolean,
       redirectTo: Option[String] = None
-  ): F[Unit]
+  ): F[Status]
 
   /**
    * Sends a mobile OTP to the user's phone number.
@@ -160,7 +162,7 @@ trait SupabaseAuthAPI[F[_]] {
    * @param createUser If `true`, creates a new user if one doesn't exist.
    * @return Unit
    */
-  def sendMobileOtp(phone: String, createUser: Boolean): F[Unit]
+  def sendMobileOtp(phone: String, createUser: Boolean): F[Status]
 
   /**
    * Verifies a mobile OTP.
@@ -186,8 +188,10 @@ trait SupabaseAuthAPI[F[_]] {
    * @param metadata Optional metadata to associate with the user.
    * @return A `UserSession`
    */
+  @deprecated("Use signUpX methods instead", "0.1.0")
   def inviteUserByEmail(
       email: String,
+      jwt: String,
       redirectTo: Option[String] = None,
       metadata: Option[Map[String, String]] = None
   ): F[UserSession]
@@ -202,7 +206,7 @@ trait SupabaseAuthAPI[F[_]] {
    * @param redirectTo A URL or mobile address to send the user to after they are confirmed.
    * @return Unit
    */
-  def requestPasswordForEmail(email: String, redirectTo: Option[String]): F[Unit]
+  def resetPasswordForEmail(email: String, redirectTo: Option[String] = None): F[Status]
 
   /**
    * Signs out the user.
@@ -213,7 +217,7 @@ trait SupabaseAuthAPI[F[_]] {
    * @param jwt The user's JWT.
    * @return Unit
    */
-  def signOut(jwt: String): F[Unit]
+  def signOut(jwt: String): F[Status]
 
   /**
    * Gets the URL for a provider.
@@ -228,8 +232,8 @@ trait SupabaseAuthAPI[F[_]] {
    */
   def getUrlForProvider(
       provider: String,
-      redirectTo: Option[String],
-      scopes: Option[List[String]]
+      redirectTo: Option[String] = None,
+      scopes: Option[List[String]] = None
   ): F[Uri]
 
   def getUser(jwt: String): F[UserSession]
@@ -239,22 +243,22 @@ trait SupabaseAuthAPI[F[_]] {
       attributes: UserAttributesRequest[Map[String, String]]
   ): F[UserSession]
 
-  def deleteUser(userId: UUID, jwt: String, shouldSoftDelete: Boolean): F[Unit]
+  def deleteUser(userId: UUID, jwt: String, shouldSoftDelete: Boolean): F[Status]
 }
 
 object SupabaseAuthAPI {
 
   private def client[F[_]: Client]: Client[F] = implicitly[Client[F]]
 
-  implicit def asJson[T](t: T)(implicit enc: Encoder[T]): Json = t.asJson
-
   def apply[F[_]: SupabaseAuthAPI]: SupabaseAuthAPI[F] = implicitly[SupabaseAuthAPI[F]]
 
-  def create[F[_]: Async: ClientR](baseUrl: Uri, apiKey: String): Resource[F, SupabaseAuthAPI[F]] =
-    implicitly[ClientR[F]].map { client =>
-      implicit val c: Client[F] = client
-      build[F](baseUrl, apiKey)
-    }
+  def create[F[_]: Async: ClientR](baseUrl: Uri, apiKey: String): F[SupabaseAuthAPI[F]] =
+    implicitly[ClientR[F]]
+      .map { client =>
+        implicit val c: Client[F] = client
+        build[F](baseUrl, apiKey)
+      }
+      .use(api => Async[F].delay(api))
 
   def build[F[_]: Async: Client](baseUrl: Uri, apiKey: String): SupabaseAuthAPI[F] =
     build[F](baseUrl, Map("apiKey" -> apiKey))
@@ -344,21 +348,24 @@ object SupabaseAuthAPI {
           email: String,
           createUser: Boolean,
           redirectTo: Option[String]
-      ): F[Unit] =
-        client.expect[Unit] {
-          Request[F](Method.POST, baseUrl / "magiclink" :? redirectTo)
-            .withHeaders(buildHeaders)
-            .withEntity[Json](SendMagicLinkRequest(email, createUser))
+      ): F[Status] =
+        client
+          .run {
+            Request[F](Method.POST, baseUrl / "magiclink" :? redirectTo)
+              .withHeaders(buildHeaders)
+              .withEntity[Json](SendMagicLinkRequest(email, createUser))
 
-        }
+          }
+          .use(resp => resp.status.pure[F])
 
-      override def sendMobileOtp(phone: String, createUser: Boolean): F[Unit] =
-        client.expect[Unit] {
-          Request[F](Method.POST, baseUrl / "otp")
-            .withHeaders(buildHeaders)
-            .withEntity[Json](SendMobileOtpRequest(phone, createUser))
-
-        }
+      override def sendMobileOtp(phone: String, createUser: Boolean): F[Status] =
+        client
+          .run {
+            Request[F](Method.POST, baseUrl / "otp")
+              .withHeaders(buildHeaders)
+              .withEntity[Json](SendMobileOtpRequest(phone, createUser))
+          }
+          .use(resp => resp.status.pure[F])
 
       override def verifyMobileOtp(
           phone: String,
@@ -372,27 +379,32 @@ object SupabaseAuthAPI {
         }
       override def inviteUserByEmail(
           email: String,
+          jwt: String,
           redirectTo: Option[String],
           metadata: Option[Map[String, String]]
       ): F[UserSession] =
         client.expect[UserSession] {
           Request[F](Method.POST, baseUrl / "invite" :? redirectTo)
-            .withHeaders(buildHeaders)
+            .withHeaders(createHeaders("Authorization" -> s"Bearer $jwt"))
             .withEntity[Json](InviteUserByEmailRequest(email, metadata))
         }
 
-      override def requestPasswordForEmail(email: String, redirectTo: Option[String]): F[Unit] =
-        client.expect[Unit] {
-          Request[F](Method.POST, baseUrl / "recover" :? redirectTo)
-            .withHeaders(buildHeaders)
-            .withEntity[Json](RequestPasswordForEmailRequest(email))
-        }
+      override def resetPasswordForEmail(email: String, redirectTo: Option[String]): F[Status] =
+        client
+          .run {
+            Request[F](Method.POST, baseUrl / "recover" :? redirectTo)
+              .withHeaders(buildHeaders)
+              .withEntity[Json](ResetPasswordForEmailRequest(email))
+          }
+          .use(resp => resp.status.pure[F])
 
-      override def signOut(jwt: String): F[Unit] =
-        client.expect[Unit] {
-          Request[F](Method.POST, baseUrl / "logout")
-            .withHeaders(createHeaders("Authorization" -> s"Bearer $jwt"))
-        }
+      override def signOut(jwt: String): F[Status] =
+        client
+          .run {
+            Request[F](Method.POST, baseUrl / "logout")
+              .withHeaders(createHeaders("Authorization" -> s"Bearer $jwt"))
+          }
+          .use(resp => resp.status.pure[F])
 
       override def getUrlForProvider(
           provider: String,
@@ -414,59 +426,23 @@ object SupabaseAuthAPI {
       override def updateUser(
           jwt: String,
           attributes: UserAttributesRequest[Map[String, String]]
-      ): F[UserSession] = {
-        val uri: Uri = baseUrl / "user"
-        val request: Request[F] = Request[F](Method.PUT, uri)
-          .withHeaders(createHeaders("Authorization" -> s"Bearer $jwt"))
-          .withEntity(attributes.asJson)
+      ): F[UserSession] =
+        client.expect[UserSession] {
+          Request[F](Method.PUT, baseUrl / "user")
+            .withHeaders(createHeaders("Authorization" -> s"Bearer $jwt"))
+            .withEntity(attributes.asJson)
 
-        client.expect[UserSession](request)
-      }
-
-      override def deleteUser(userId: UUID, jwt: String, shouldSoftDelete: Boolean): F[Unit] = {
-        val uri: Uri = baseUrl / "admin" / "users" / userId.toString
-        val request: Request[F] = Request[F](Method.DELETE, uri)
-          .withHeaders(createHeaders("Authorization" -> s"Bearer $jwt"))
-          .withEntity(ShouldSoftDeleteRequest(shouldSoftDelete).asJson)
-
-        client.expect[Unit](request)
-      }
-
-      /** Private methods */
-
-      implicit class ImplicitURI(uri: Uri) {
-        def :?(redirectTo: Option[String]): Uri =
-          redirectTo.fold(uri)(redirectTo =>
-            uri.withQueryParam("redirect_to", Uri.encode(redirectTo))
-          )
-
-        def :+?(params: Map[String, String]): Uri =
-          params.foldLeft(uri)((acc, param) => acc.withQueryParam(param._1, param._2))
-      }
-
-      private def postF[T: Encoder, O: EntityDecoder[F, *]](
-          endpoint: String,
-          redirectTo: Option[String] = None
-      )(payload: T): F[O] = {
-        val qp: Map[String, String] =
-          redirectTo.map(r => Map("redirect_to" -> Uri.encode(r))).getOrElse(Map.empty)
-        postF(endpoint, qp)(payload)
-      }
-
-      private def postF[T: Encoder, O: EntityDecoder[F, *]](
-          endpoint: String,
-          queryParams: Map[String, String]
-      )(payload: T): F[O] = {
-        val base: Uri = baseUrl / endpoint
-        val uri: Uri = queryParams.foldLeft(base) { case (uri, (pk, pv)) =>
-          uri.withQueryParam(pk, pv)
         }
-        val request: Request[F] = Request[F](Method.POST, uri)
-          .withHeaders(buildHeaders)
-          .withEntity(payload.asJson)
 
-        client.expect[O](request)
-      }
+      override def deleteUser(userId: UUID, jwt: String, shouldSoftDelete: Boolean): F[Status] =
+        client
+          .run {
+            Request[F](Method.DELETE, baseUrl / "admin" / "users" / userId.toString)
+              .withHeaders(createHeaders("Authorization" -> s"Bearer $jwt"))
+              .withEntity(ShouldSoftDeleteRequest(shouldSoftDelete).asJson)
+          }
+          .use(resp => resp.status.pure[F])
+
     }
 }
 
@@ -475,17 +451,24 @@ object Example extends IOApp {
   import SupabaseAuthAPI._
 
   def run(args: List[String]): IO[ExitCode] = {
-    val baseUrl: Uri = Uri.unsafeFromString("http://localhost:54321/auth/v1/")
-//    val baseUrl: Uri = Uri.unsafeFromString("https://rzactotqkibyymeotzui.supabase.co/auth/v1/")
+//    val baseUrl: Uri = Uri.unsafeFromString("http://localhost:54321/auth/v1/")
+    val baseUrl: Uri = Uri.unsafeFromString("https://rzactotqkibyymeotzui.supabase.co/auth/v1/")
     val apiKey: String =
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0"
-//      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ6YWN0b3Rxa2lieXltZW90enVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzcwNTkxOTMsImV4cCI6MjA1MjYzNTE5M30.knztz7okoUciM9kvcxu95ti-0qDwCLa5PbwjpP6peIM"
+//      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0"
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ6YWN0b3Rxa2lieXltZW90enVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzcwNTkxOTMsImV4cCI6MjA1MjYzNTE5M30.knztz7okoUciM9kvcxu95ti-0qDwCLa5PbwjpP6peIM"
     val clientR: Resource[IO, Client[IO]] = EmberClientBuilder.default[IO].build
-    val user: IO[Session] =
+    val user =
       clientR.use { client =>
         implicit val c: Client[IO] = client
-        build[IO](baseUrl, apiKey)
-          .signUpWithPhone("+1234567890", "password", None)
+        val api                    = build[IO](baseUrl, apiKey)
+        for {
+          user <- api.signInWithEmail("test.4@eff3ct.com", "Admin123")
+          t     = implicitly[As[Session, TokenSession]].as(user)
+          token = t.get
+          d <- api.signOut(token.accessToken)
+          a = 0
+
+        } yield d
       }
 
     for {

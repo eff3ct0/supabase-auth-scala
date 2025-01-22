@@ -4,8 +4,8 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.eff3ct.supabase.auth.api.response.{Session, TokenSession}
 import com.eff3ct.supabase.auth.test.FancyCatsEffectSuiteTest
-import org.http4s.Uri
 import org.http4s.ember.client.EmberClientBuilder
+import org.http4s.{Status, Uri}
 import org.scalacheck._
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
@@ -23,7 +23,7 @@ class SupabaseAuthAPISpec
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0"
   implicit val client: ClientR[IO] = EmberClientBuilder.default[IO].build
   implicit val api: SupabaseAuthAPI[IO] =
-    SupabaseAuthAPI.create[IO](baseUrl, apiKey).use(a => IO(a)).unsafeRunSync()
+    SupabaseAuthAPI.create[IO](baseUrl, apiKey).unsafeRunSync()
 
   // Define a generator for valid email addresses
   val emailGen: Gen[String] = for {
@@ -134,4 +134,19 @@ class SupabaseAuthAPISpec
     }
   }
 
+  it should "signOut an active session" in {
+    forAll(emailPasswordGen) { case (email, password) =>
+      val response: IO[Status] = for {
+        _      <- SupabaseAuthAPI[IO].signUpWithEmail(email, password)
+        result <- SupabaseAuthAPI[IO].signInWithEmail(email, password)
+        res = result match {
+          case t: TokenSession => t
+          case _               => fail("Unexpected result. Expected TokenSession")
+        }
+        signOutResult: Status <- SupabaseAuthAPI[IO].signOut(res.accessToken)
+      } yield signOutResult
+
+      response shouldBe Status.NoContent
+    }
+  }
 }
