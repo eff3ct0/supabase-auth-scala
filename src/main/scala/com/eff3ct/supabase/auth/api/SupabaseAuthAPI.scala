@@ -281,7 +281,7 @@ object SupabaseAuthAPI {
           UserAttributesRequest(
             email = Option(email),
             password = Option(password),
-            metadata = metadata
+            data = metadata
           )
         )
 
@@ -438,7 +438,8 @@ object Example extends IOApp {
   import SupabaseAuthAPI._
 
   def run(args: List[String]): IO[ExitCode] = {
-    val baseUrl: Uri = Uri.unsafeFromString("http://localhost:54321/auth/v1/")
+//    val baseUrl: Uri = Uri.unsafeFromString("http://localhost:54321/auth/v1/")
+    val baseUrl: Uri = Uri.unsafeFromString("https://rzactotqkibyymeotzui.supabase.co/auth/v1/")
     val apiKey: String =
       "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0"
     val clientR: Resource[IO, Client[IO]] = EmberClientBuilder.default[IO].build
@@ -446,7 +447,7 @@ object Example extends IOApp {
       clientR.use { client =>
         implicit val c: Client[IO] = client
         build[IO](baseUrl, apiKey)
-          .signUpWithEmail("test@gmail.com", "Admin123!")
+          .signUpWithPhone("+1234567890", "password", None)
       }
 
     for {

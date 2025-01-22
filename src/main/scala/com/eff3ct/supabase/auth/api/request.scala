@@ -31,17 +31,17 @@ object request {
   case class EmailPasswordRequest(
       email: String,
       password: String,
-      metadata: Option[Map[String, String]] = None
+      data: Option[Map[String, String]] = None
   )
   case class PhonePasswordRequest(
       phone: String,
       password: String,
-      metadata: Option[Map[String, String]] = None
+      data: Option[Map[String, String]] = None
   )
   case class SendMagicLinkRequest(email: String, createUser: Boolean)
   case class SendMobileOtpRequest(phone: String, createUser: Boolean)
   case class VerifyMobileOtpRequest(phone: String, token: String, `type`: String)
-  case class InviteUserByEmailRequest(email: String, metadata: Option[Map[String, String]])
+  case class InviteUserByEmailRequest(email: String, data: Option[Map[String, String]])
   case class RequestPasswordForEmailRequest(email: String)
 
   @ConfiguredJsonCodec
@@ -51,7 +51,7 @@ object request {
       email: Option[String] = None,
       phone: Option[String] = None,
       password: Option[String] = None,
-      metadata: Option[T] = None
+      data: Option[T] = None
   )
 
 }

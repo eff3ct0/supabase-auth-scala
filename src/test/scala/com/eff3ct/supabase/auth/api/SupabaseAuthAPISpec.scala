@@ -35,12 +35,23 @@ class SupabaseAuthAPISpec
   val passwordGen: Gen[String] =
     Gen.alphaNumStr.retryUntil(password => password.length >= 6).map(_.take(10))
 
-  "SupabaseAuthAPI" should "sign up a new user" in {
+  // Define a generator for valid phone numbers
+  val phoneGen: Gen[String] = for {
+    countryCode <- Gen.oneOf("+1", "+2", "+3", "+4", "+5", "+6", "+7", "+8", "+9")
+    takeNumber  <- Gen.pick(6, List(1, 2, 3, 4, 5, 6, 7, 8, 9))
+  } yield s"$countryCode${takeNumber.mkString}"
 
-    val emailPasswordGen: Gen[(String, String)] = for {
-      email    <- emailGen
-      password <- passwordGen
-    } yield (email, password)
+  val phonePasswordGen: Gen[(String, String)] = for {
+    phone    <- phoneGen
+    password <- passwordGen
+  } yield (phone, password)
+
+  val emailPasswordGen: Gen[(String, String)] = for {
+    email    <- emailGen
+    password <- passwordGen
+  } yield (email.toLowerCase, password)
+
+  "SupabaseAuthAPI" should "sign up a new user with email and password" in {
 
     forAll(emailPasswordGen) { case (email, password) =>
       val result = SupabaseAuthAPI[IO].signUpWithEmail(email, password).unsafeRunSync()
@@ -56,10 +67,45 @@ class SupabaseAuthAPISpec
               providerRefreshToken,
               user
             ) =>
-          user.email shouldBe email.toLowerCase
+          user.email shouldBe email
           user.role shouldBe "authenticated"
           user.appMetadata.provider shouldBe "email"
-          user.userMetadata.email shouldBe email.toLowerCase
+          user.userMetadata.email shouldBe email
+          assert(user.identities.isEmpty)
+          assert(user.createdAt.nonEmpty)
+          assert(user.updatedAt.nonEmpty)
+          assert(!user.isAnonymous)
+          assert(accessToken.nonEmpty)
+          tokenType shouldBe "bearer"
+          assert(expiresIn > 0)
+          assert(expiresAt.nonEmpty)
+          assert(refreshToken.nonEmpty)
+          assert(providerToken.isEmpty)
+          assert(providerRefreshToken.isEmpty)
+        case _ => fail("Unexpected result. Expected TokenSession")
+      }
+    }
+  }
+
+  it should "sign up a new user with phone and password" in {
+    forAll(phonePasswordGen) { case (phone, password) =>
+      val result = SupabaseAuthAPI[IO].signUpWithPhone(phone, password).unsafeRunSync()
+      0
+      result match {
+        case TokenSession(
+        accessToken,
+        tokenType,
+        expiresIn,
+        expiresAt,
+        refreshToken,
+        providerToken,
+        providerRefreshToken,
+        user
+        ) =>
+          user.phone shouldBe Some(phone)
+          user.role shouldBe "authenticated"
+          user.appMetadata.provider shouldBe "phone"
+          user.userMetadata.phoneVerified shouldBe true
           assert(user.identities.isEmpty)
           assert(user.createdAt.nonEmpty)
           assert(user.updatedAt.nonEmpty)
