@@ -2,7 +2,7 @@ package com.eff3ct.supabase.auth.api
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.eff3ct.supabase.auth.api.response.TokenSession
+import com.eff3ct.supabase.auth.api.response.{Session, TokenSession}
 import com.eff3ct.supabase.auth.test.FancyCatsEffectSuiteTest
 import org.http4s.Uri
 import org.http4s.ember.client.EmberClientBuilder
@@ -54,8 +54,7 @@ class SupabaseAuthAPISpec
   "SupabaseAuthAPI" should "sign up a new user with email and password" in {
 
     forAll(emailPasswordGen) { case (email, password) =>
-      val result = SupabaseAuthAPI[IO].signUpWithEmail(email, password).unsafeRunSync()
-
+      val result: Session = SupabaseAuthAPI[IO].signUpWithEmail(email, password).unsafeRunSync()
       result match {
         case TokenSession(
               accessToken,
@@ -71,7 +70,7 @@ class SupabaseAuthAPISpec
           user.role shouldBe "authenticated"
           user.appMetadata.provider shouldBe "email"
           user.userMetadata.email shouldBe email
-          assert(user.identities.isEmpty)
+          assert(user.identities.nonEmpty)
           assert(user.createdAt.nonEmpty)
           assert(user.updatedAt.nonEmpty)
           assert(!user.isAnonymous)
@@ -89,11 +88,9 @@ class SupabaseAuthAPISpec
 
   it should "sign in a user with email and password" in {
     forAll(emailPasswordGen) { case (email, password) =>
-      val signUpResult = SupabaseAuthAPI[IO].signUpWithEmail(email, password).unsafeRunSync()
-      0
-      val result       = SupabaseAuthAPI[IO].signInWithEmail(email, password).unsafeRunSync()
-      0
-
+      val signUpResult: Session =
+        SupabaseAuthAPI[IO].signUpWithEmail(email, password).unsafeRunSync()
+      val result: Session = SupabaseAuthAPI[IO].signInWithEmail(email, password).unsafeRunSync()
       result match {
         case TokenSession(
               accessToken,

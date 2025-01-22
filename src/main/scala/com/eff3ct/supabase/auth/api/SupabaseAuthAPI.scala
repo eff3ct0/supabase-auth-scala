@@ -402,7 +402,7 @@ object SupabaseAuthAPI {
         val scopeQueryParams: Map[String, String] =
           scopes.map(s => Map("scopes" -> s.mkString(","))).getOrElse(Map.empty)
 
-        baseUrl / "authorize" ++? scopeQueryParams :? redirectTo
+        baseUrl / "authorize" :+? scopeQueryParams :? redirectTo
       }
 
       override def getUser(jwt: String): F[UserSession] =
@@ -440,7 +440,7 @@ object SupabaseAuthAPI {
             uri.withQueryParam("redirect_to", Uri.encode(redirectTo))
           )
 
-        def ++?(params: Map[String, String]): Uri =
+        def :+?(params: Map[String, String]): Uri =
           params.foldLeft(uri)((acc, param) => acc.withQueryParam(param._1, param._2))
       }
 
