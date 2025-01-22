@@ -27,9 +27,9 @@ package com.eff3ct.supabase.auth.api
 import cats.effect._
 import com.eff3ct.supabase.auth.api.request._
 import com.eff3ct.supabase.auth.api.response._
-import io.circe.Encoder
 import io.circe.generic.auto._
 import io.circe.syntax.EncoderOps
+import io.circe.{Encoder, Json}
 import org.http4s._
 import org.http4s.circe.CirceEntityDecoder._
 import org.http4s.circe._
@@ -246,6 +246,8 @@ object SupabaseAuthAPI {
 
   private def client[F[_]: Client]: Client[F] = implicitly[Client[F]]
 
+  implicit def asJson[T](t: T)(implicit enc: Encoder[T]): Json = t.asJson
+
   def apply[F[_]: SupabaseAuthAPI]: SupabaseAuthAPI[F] = implicitly[SupabaseAuthAPI[F]]
 
   def create[F[_]: Async: ClientR](baseUrl: Uri, apiKey: String): Resource[F, SupabaseAuthAPI[F]] =
@@ -277,113 +279,137 @@ object SupabaseAuthAPI {
           password: String,
           metadata: Option[Map[String, String]]
       ): F[UserSession] =
-        postF(endpoint = "admin/users")(
-          UserAttributesRequest(
-            email = Option(email),
-            password = Option(password),
-            data = metadata
-          )
-        )
+        client.expect[UserSession] {
+          Request[F](Method.POST, baseUrl / "admin" / "users")
+            .withHeaders(buildHeaders)
+            .withEntity[Json](
+              UserAttributesRequest(
+                email = Option(email),
+                password = Option(password),
+                data = metadata
+              )
+            )
+        }
 
-      override def listUsers(): F[List[UserSession]] = {
-        val uri: Uri            = baseUrl / "admin" / "users"
-        val request: Request[F] = Request[F](Method.GET, uri).withHeaders(buildHeaders)
-        client.expect[List[UserSession]](request)
-      }
+      override def listUsers(): F[List[UserSession]] =
+        client.expect[List[UserSession]] {
+          Request[F](Method.GET, baseUrl / "admin" / "users")
+            .withHeaders(buildHeaders)
+        }
 
       override def signUpWithEmail(
           email: String,
           password: String,
           redirectTo: Option[String],
           metadata: Option[Map[String, String]]
-      ): F[Session] = postF(endpoint = "signup", redirectTo = redirectTo)(
-        EmailPasswordRequest(email, password, metadata)
-      )
+      ): F[Session] =
+        client.expect[Session] {
+          Request[F](Method.POST, baseUrl / "signup" :? redirectTo)
+            .withHeaders(buildHeaders)
+            .withEntity[Json](EmailPasswordRequest(email, password, metadata))
+        }
 
       override def signUpWithPhone(
           phone: String,
           password: String,
           metadata: Option[Map[String, String]]
-      ): F[Session] = postF(endpoint = "signup")(PhonePasswordRequest(phone, password, metadata))
+      ): F[Session] =
+        client.expect[Session] {
+          Request[F](Method.POST, baseUrl / "signup")
+            .withHeaders(buildHeaders)
+            .withEntity[Json](PhonePasswordRequest(phone, password, metadata))
+
+        }
 
       override def signInWithEmail(
           email: String,
           password: String,
           redirectTo: Option[String]
       ): F[Session] =
-        postF(endpoint = "token", redirectTo = redirectTo)(EmailPasswordRequest(email, password))
+        client.expect[Session] {
+          Request[F](Method.POST, baseUrl / "token" +? ("grant_type" -> "password") :? redirectTo)
+            .withHeaders(buildHeaders)
+            .withEntity[Json](EmailPasswordRequest(email, password))
+
+        }
 
       override def signInWithPhone(phone: String, password: String): F[Session] =
-        postF(endpoint = "token")(PhonePasswordRequest(phone, password))
+        client.expect[Session] {
+          Request[F](Method.POST, baseUrl / "token" +? ("grant_type" -> "password"))
+            .withHeaders(buildHeaders)
+            .withEntity[Json](PhonePasswordRequest(phone, password))
+        }
 
       override def sendMagicLinkEmail(
           email: String,
           createUser: Boolean,
           redirectTo: Option[String]
-      ): F[Unit] = postF(endpoint = "magiclink", redirectTo = redirectTo)(
-        SendMagicLinkRequest(email, createUser)
-      )
+      ): F[Unit] =
+        client.expect[Unit] {
+          Request[F](Method.POST, baseUrl / "magiclink" :? redirectTo)
+            .withHeaders(buildHeaders)
+            .withEntity[Json](SendMagicLinkRequest(email, createUser))
+
+        }
 
       override def sendMobileOtp(phone: String, createUser: Boolean): F[Unit] =
-        postF(endpoint = "otp")(SendMobileOtpRequest(phone, createUser))
+        client.expect[Unit] {
+          Request[F](Method.POST, baseUrl / "otp")
+            .withHeaders(buildHeaders)
+            .withEntity[Json](SendMobileOtpRequest(phone, createUser))
+
+        }
 
       override def verifyMobileOtp(
           phone: String,
           token: String,
           redirectTo: Option[String]
       ): F[Session] =
-        postF(endpoint = "verify", redirectTo = redirectTo)(
-          VerifyMobileOtpRequest(phone, token, "sms")
-        )
-
+        client.expect[Session] {
+          Request[F](Method.POST, baseUrl / "verify" :? redirectTo)
+            .withHeaders(buildHeaders)
+            .withEntity[Json](VerifyMobileOtpRequest(phone, token, "sms"))
+        }
       override def inviteUserByEmail(
           email: String,
           redirectTo: Option[String],
           metadata: Option[Map[String, String]]
       ): F[UserSession] =
-        postF(endpoint = "invite", redirectTo = redirectTo)(
-          InviteUserByEmailRequest(email, metadata)
-        )
+        client.expect[UserSession] {
+          Request[F](Method.POST, baseUrl / "invite" :? redirectTo)
+            .withHeaders(buildHeaders)
+            .withEntity[Json](InviteUserByEmailRequest(email, metadata))
+        }
 
       override def requestPasswordForEmail(email: String, redirectTo: Option[String]): F[Unit] =
-        postF(endpoint = "recover", redirectTo = redirectTo)(RequestPasswordForEmailRequest(email))
+        client.expect[Unit] {
+          Request[F](Method.POST, baseUrl / "recover" :? redirectTo)
+            .withHeaders(buildHeaders)
+            .withEntity[Json](RequestPasswordForEmailRequest(email))
+        }
 
-      override def signOut(jwt: String): F[Unit] = {
-        val uri: Uri         = baseUrl / "logout"
-        val headers: Headers = createHeaders("Authorization" -> s"Bearer $jwt")
-        val request: Request[F] = Request[F](Method.POST, uri)
-          .withHeaders(headers)
-
-        client.expect[Unit](request)
-      }
+      override def signOut(jwt: String): F[Unit] =
+        client.expect[Unit] {
+          Request[F](Method.POST, baseUrl / "logout")
+            .withHeaders(createHeaders("Authorization" -> s"Bearer $jwt"))
+        }
 
       override def getUrlForProvider(
           provider: String,
           redirectTo: Option[String],
           scopes: Option[List[String]]
       ): F[Uri] = Async[F].delay {
-        val base: Uri = baseUrl / "authorize"
-
         val scopeQueryParams: Map[String, String] =
           scopes.map(s => Map("scopes" -> s.mkString(","))).getOrElse(Map.empty)
 
-        val redirectToQueryParams: Map[String, String] =
-          redirectTo.map(r => Map("redirect_to" -> Uri.encode(r))).getOrElse(Map.empty)
+        baseUrl / "authorize" ++? scopeQueryParams :? redirectTo
+      }
 
-        val queryParams: Map[String, String] = scopeQueryParams ++ redirectToQueryParams
-
-        queryParams.foldLeft(base) { case (uri, (pk, pv)) =>
-          uri.withQueryParam(pk, pv)
+      override def getUser(jwt: String): F[UserSession] =
+        client.expect[UserSession] {
+          Request[F](Method.GET, baseUrl / "user")
+            .withHeaders(createHeaders("Authorization" -> s"Bearer $jwt"))
         }
-      }
-
-      override def getUser(jwt: String): F[UserSession] = {
-        val uri: Uri = baseUrl / "user"
-        val request: Request[F] = Request[F](Method.GET, uri)
-          .withHeaders(createHeaders("Authorization" -> s"Bearer $jwt"))
-
-        client.expect[UserSession](request)
-      }
 
       override def updateUser(
           jwt: String,
@@ -407,6 +433,17 @@ object SupabaseAuthAPI {
       }
 
       /** Private methods */
+
+      implicit class ImplicitURI(uri: Uri) {
+        def :?(redirectTo: Option[String]): Uri =
+          redirectTo.fold(uri)(redirectTo =>
+            uri.withQueryParam("redirect_to", Uri.encode(redirectTo))
+          )
+
+        def ++?(params: Map[String, String]): Uri =
+          params.foldLeft(uri)((acc, param) => acc.withQueryParam(param._1, param._2))
+      }
+
       private def postF[T: Encoder, O: EntityDecoder[F, *]](
           endpoint: String,
           redirectTo: Option[String] = None
@@ -438,10 +475,11 @@ object Example extends IOApp {
   import SupabaseAuthAPI._
 
   def run(args: List[String]): IO[ExitCode] = {
-//    val baseUrl: Uri = Uri.unsafeFromString("http://localhost:54321/auth/v1/")
-    val baseUrl: Uri = Uri.unsafeFromString("https://rzactotqkibyymeotzui.supabase.co/auth/v1/")
+    val baseUrl: Uri = Uri.unsafeFromString("http://localhost:54321/auth/v1/")
+//    val baseUrl: Uri = Uri.unsafeFromString("https://rzactotqkibyymeotzui.supabase.co/auth/v1/")
     val apiKey: String =
       "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0"
+//      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ6YWN0b3Rxa2lieXltZW90enVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzcwNTkxOTMsImV4cCI6MjA1MjYzNTE5M30.knztz7okoUciM9kvcxu95ti-0qDwCLa5PbwjpP6peIM"
     val clientR: Resource[IO, Client[IO]] = EmberClientBuilder.default[IO].build
     val user: IO[Session] =
       clientR.use { client =>

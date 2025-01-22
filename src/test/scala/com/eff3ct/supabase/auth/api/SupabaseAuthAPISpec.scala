@@ -87,26 +87,29 @@ class SupabaseAuthAPISpec
     }
   }
 
-  it should "sign up a new user with phone and password" in {
-    forAll(phonePasswordGen) { case (phone, password) =>
-      val result = SupabaseAuthAPI[IO].signUpWithPhone(phone, password).unsafeRunSync()
+  it should "sign in a user with email and password" in {
+    forAll(emailPasswordGen) { case (email, password) =>
+      val signUpResult = SupabaseAuthAPI[IO].signUpWithEmail(email, password).unsafeRunSync()
       0
+      val result       = SupabaseAuthAPI[IO].signInWithEmail(email, password).unsafeRunSync()
+      0
+
       result match {
         case TokenSession(
-        accessToken,
-        tokenType,
-        expiresIn,
-        expiresAt,
-        refreshToken,
-        providerToken,
-        providerRefreshToken,
-        user
-        ) =>
-          user.phone shouldBe Some(phone)
+              accessToken,
+              tokenType,
+              expiresIn,
+              expiresAt,
+              refreshToken,
+              providerToken,
+              providerRefreshToken,
+              user
+            ) =>
+          user.email shouldBe email
           user.role shouldBe "authenticated"
-          user.appMetadata.provider shouldBe "phone"
-          user.userMetadata.phoneVerified shouldBe true
-          assert(user.identities.isEmpty)
+          user.appMetadata.provider shouldBe "email"
+          user.userMetadata.email shouldBe email
+          assert(user.identities.nonEmpty)
           assert(user.createdAt.nonEmpty)
           assert(user.updatedAt.nonEmpty)
           assert(!user.isAnonymous)
@@ -118,6 +121,18 @@ class SupabaseAuthAPISpec
           assert(providerToken.isEmpty)
           assert(providerRefreshToken.isEmpty)
         case _ => fail("Unexpected result. Expected TokenSession")
+      }
+
+      (signUpResult, result) match {
+        case (s: TokenSession, r: TokenSession) =>
+          assert(s.user.id == r.user.id)
+          assert(s.user.email == r.user.email)
+
+        case _ =>
+          fail(
+            "Unexpected. Both results should be TokenSession and should have the same user id and email"
+          )
+
       }
     }
   }
