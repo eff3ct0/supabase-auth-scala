@@ -23,7 +23,13 @@ jobs:
 
       - name: Start Supabase
         run: |
-          npx supabase start
+          npx supabase start &
+
+      - name: Wait for Supabase to be ready
+        run: |
+          until curl --silent --fail http://localhost:54323; do
+            sleep 15
+          done
 
       - uses: actions/setup-java@v4
         with:
