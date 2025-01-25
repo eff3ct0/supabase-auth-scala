@@ -10,6 +10,28 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Install Docker Compose
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y docker-compose
+
+      - name: Clone Supabase repository
+        run: |
+          git clone --depth 1 https://github.com/supabase/supabase
+          cd supabase/docker
+          cp .env.example .env
+          docker compose pull
+
+      - name: Start Supabase services
+        run: |
+          cd supabase/docker
+          docker compose up -d
+          docker ps
+
+      - name: Wait for Supabase to be ready
+        run: sleep 20
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
