@@ -35,14 +35,6 @@ jobs:
         run: |
           npx supabase start
 
-      - name: Wait for Supabase to be ready
-        run: |
-          until curl --silent --fail http://localhost:54323; do
-            echo "Waiting for Supabase to start..."
-            sleep 5
-          done
-          echo "Supabase is ready."
-
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
