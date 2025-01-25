@@ -24,14 +24,6 @@ jobs:
         with:
           node-version: 18
 
-      - name: Cache Node.js modules
-        uses: actions/cache@v3
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-
-
       - name: Start Supabase
         run: |
           npx supabase start
@@ -42,16 +34,6 @@ jobs:
           java-version: ${{ matrix.java }}
 
       - uses: sbt/setup-sbt@v1
-
-      - name: Cache SBT dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.ivy2/cache
-            ~/.sbt
-            ~/.coursier
-          key: ${{ runner.os }}-sbt-${{ hashFiles('**/build.sbt') }}
-          restore-keys: ${{ runner.os }}-sbt-
 
       - name: Create header and run scalafmt
         run: sbt headerCreateAll scalafmtAll
