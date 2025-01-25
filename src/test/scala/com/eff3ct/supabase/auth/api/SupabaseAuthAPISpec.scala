@@ -26,7 +26,8 @@ package com.eff3ct.supabase.auth.api
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.eff3ct.supabase.auth.api.response.{Session, TokenSession}
+import com.eff3ct.supabase.auth.api.response.{Session, TokenSession, UserSession}
+import com.eff3ct.supabase.auth.implicits.UserMetadataOps
 import com.eff3ct.supabase.auth.test._
 import com.eff3ct.supabase.auth.test.resources._
 import org.http4s.Status
@@ -49,8 +50,7 @@ class SupabaseAuthAPISpec
       .create[IO](localhostUri, Map("Authorization" -> s"Bearer $ServiceRoleJwt"))
       .unsafeRunSync()
 
-  "SupabaseAuthAPI" should "sign up a new user with email and password" in {
-
+  "SupabaseAuthAPI" should "sign up a new user with email and password" in
     forAll(emailPasswordGen) { case (email, password) =>
       val result: Session = SupabaseAuthAPI[IO].signUpWithEmail(email, password).unsafeRunSync()
       result match {
@@ -82,9 +82,25 @@ class SupabaseAuthAPISpec
         case _ => fail("Unexpected result. Expected TokenSession")
       }
     }
-  }
 
-  it should "sign in a user with email and password" in {
+  it should "sign up a new user with email, password and metadata" in
+    forAll(emailPasswordGen, userMetadataGen) { case ((email, password), metadata) =>
+      val specMetadata: IO[TestUserMetadata] =
+        for {
+          user <- SupabaseAuthAPI[IO].signUpWithEmail(email, password, metadata)
+          userMetadata <- user match {
+            case u: UserSession  => u.userMetadata.asTypedF[IO, TestUserMetadata]
+            case t: TokenSession => t.user.userMetadata.asTypedF[IO, TestUserMetadata]
+          }
+          metadata <- IO.fromOption(userMetadata.metadata)(
+            fail("User metadata should not be empty")
+          )
+        } yield metadata
+
+      specMetadata shouldBe metadata
+    }
+
+  it should "sign in a user with email and password" in
     forAll(emailPasswordGen) { case (email, password) =>
       val signUpResult: Session =
         SupabaseAuthAPI[IO].signUpWithEmail(email, password).unsafeRunSync()
@@ -130,9 +146,8 @@ class SupabaseAuthAPISpec
 
       }
     }
-  }
 
-  it should "sign out an active session" in {
+  it should "sign out an active session" in
     forAll(emailPasswordGen) { case (email, password) =>
       val response: IO[Status] = for {
         _      <- SupabaseAuthAPI[IO].signUpWithEmail(email, password)
@@ -146,5 +161,5 @@ class SupabaseAuthAPISpec
 
       response shouldBe Status.NoContent
     }
-  }
+
 }

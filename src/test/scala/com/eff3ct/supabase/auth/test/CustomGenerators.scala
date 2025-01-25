@@ -24,7 +24,7 @@
 
 package com.eff3ct.supabase.auth.test
 
-import com.eff3ct.supabase.auth.test.resources.TestUserMetadata
+import com.eff3ct.supabase.auth.test.resources.{Address, ComplexMetadata, TestUserMetadata}
 import org.scalacheck.Gen
 import org.scalatest.{Assertion, Assertions}
 
@@ -32,8 +32,13 @@ trait CustomGenerators {
   self: Assertions =>
 
   def forAll[A](gen: Gen[A])(f: A => Assertion): Unit = {
-    val sample = Vector.fill(5)(gen.sample).flatten
+    val sample: Vector[A] = Vector.fill(5)(gen.sample).flatten
     sample.foreach(f)
+  }
+
+  def forAll[A1, A2](g1: Gen[A1], g2: Gen[A2])(f: (A1, A2) => Assertion): Unit = {
+    val sample: Vector[(A1, A2)] = Vector.fill(5)(g1.sample zip g2.sample).flatten
+    sample.foreach { case (a1, a2) => f(a1, a2) }
   }
 
   // Define a generator for valid email addresses
@@ -62,12 +67,23 @@ trait CustomGenerators {
     password <- passwordGen
   } yield (email.toLowerCase, password)
 
+  def complexMetadataGen(depth: Int = 1): Gen[ComplexMetadata] = for {
+    value <- Gen.alphaNumStr
+    vector <-
+      if (depth == 0) Gen.const(List.empty) else Gen.listOfN(depth, complexMetadataGen(depth - 1))
+  } yield ComplexMetadata(value, vector)
+
   val userMetadataGen: Gen[TestUserMetadata] = for {
-    profileImage <- Gen.alphaNumStr
-    website      <- Gen.alphaNumStr
-    twitter      <- Gen.alphaNumStr
-    bio          <- Gen.alphaNumStr
-    fullName     <- Gen.alphaNumStr
-  } yield TestUserMetadata(profileImage, website, twitter, bio, fullName)
+    profileImage    <- Gen.alphaNumStr
+    website         <- Gen.alphaNumStr
+    twitter         <- Gen.alphaNumStr
+    bio             <- Gen.alphaNumStr
+    fullName        <- Gen.alphaNumStr
+    street          <- Gen.alphaNumStr
+    city            <- Gen.alphaNumStr
+    depth           <- Gen.choose(0, 5)
+    complexMetadata <- complexMetadataGen(depth)
+    address = Address(street, city)
+  } yield TestUserMetadata(profileImage, website, twitter, bio, fullName, address, complexMetadata)
 
 }

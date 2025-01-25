@@ -62,7 +62,12 @@ object resources extends resources {
       website: String,
       twitter: String,
       bio: String,
-      fullName: String
+      fullName: String,
+      address: Address,
+      complexMetadata: ComplexMetadata
   )
+
+  case class ComplexMetadata(value: String, vector: List[ComplexMetadata])
+  case class Address(street: String, city: String)
 
 }
