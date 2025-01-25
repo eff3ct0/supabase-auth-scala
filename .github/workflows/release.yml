@@ -18,10 +18,6 @@ jobs:
           node-version: 18 # Ajusta según la versión que necesites
           cache: 'npm'
 
-      - name: Install dependencies
-        run: |
-          npm install
-
       - name: Initialize Supabase
         run: |
           npx supabase init
