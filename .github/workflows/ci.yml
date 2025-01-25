@@ -24,6 +24,10 @@ jobs:
         with:
           node-version: 18
 
+      - name: Initialize Supabase
+        run: |
+          npx supabase init
+
       - name: Start Supabase
         run: |
           npx supabase start
