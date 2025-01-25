@@ -16,6 +16,7 @@ lazy val root =
           circe.generic,
           circe.parser,
           circe.genericExtras,
+          jwt.circe,
           http4s.circe,
           http4s.dsl,
           http4s.emberClient,

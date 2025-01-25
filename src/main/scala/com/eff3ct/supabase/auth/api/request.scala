@@ -24,6 +24,7 @@
 
 package com.eff3ct.supabase.auth.api
 
+import io.circe.Json
 import io.circe.generic.extras.ConfiguredJsonCodec
 
 object request {
@@ -31,12 +32,12 @@ object request {
   case class EmailPasswordRequest(
       email: String,
       password: String,
-      data: Option[Map[String, String]] = None
+      data: Json = Json.Null
   )
   case class PhonePasswordRequest(
       phone: String,
       password: String,
-      data: Option[Map[String, String]] = None
+      data: Json = Json.Null
   )
   case class SendMagicLinkRequest(email: String, createUser: Boolean)
   case class SendMobileOtpRequest(phone: String, createUser: Boolean)

@@ -22,29 +22,47 @@
  * SOFTWARE.
  */
 
-package com.eff3ct.supabase.auth
+package com.eff3ct.supabase.auth.test
 
-import cats.effect.Resource
-import io.circe.generic.extras.Configuration
-import io.circe.syntax.EncoderOps
-import io.circe.{Encoder, Json}
+import io.circe.generic.extras.{AutoDerivation, Configuration}
+import io.circe.syntax._
 import org.http4s.Uri
-import org.http4s.client.Client
+import pdi.jwt.{JwtAlgorithm, JwtCirce}
 
-package object api {
-  type ClientR[F[_]] = Resource[F, Client[F]]
+trait resources extends AutoDerivation {
+  implicit val config: Configuration =
+    Configuration.default.withSnakeCaseMemberNames.withDefaults
+}
 
-  private[api] implicit val config: Configuration =
-    Configuration.default.withSnakeCaseMemberNames
+object resources extends resources {
 
-  private[api] implicit def asJson[T](t: T)(implicit enc: Encoder[T]): Json = t.asJson
+  // Define a resource that provides an instance of SupabaseAuthAPI
+  val localhostUri: Uri = Uri.unsafeFromString("http://localhost:54321/auth/v1/")
 
-  private[api] implicit class ImplicitURI(uri: Uri) {
-    def :?(redirectTo: Option[String]): Uri =
-      redirectTo.fold(uri)(redirectTo => uri.withQueryParam("redirect_to", Uri.encode(redirectTo)))
+  val JwtSecret: String = "37c304f8-51aa-419a-a1af-06154e63707a"
 
-    def :+?(params: Map[String, String]): Uri =
-      params.foldLeft(uri)((acc, param) => acc.withQueryParam(param._1, param._2))
-  }
+  case class AuthAdmin(sub: Option[String], role: String)
+
+  val AuthAdmingJwt: String =
+    JwtCirce.encode(
+      AuthAdmin(sub = Option("1234567890"), role = "supabase_admin").asJson.noSpaces,
+      JwtSecret,
+      JwtAlgorithm.HS256
+    )
+
+  val ServiceRoleJwt: String =
+    JwtCirce.encode(
+      AuthAdmin(sub = None, role = "service_role").asJson.dropNullValues.noSpaces,
+      JwtSecret,
+      JwtAlgorithm.HS256
+    )
+
+  case class TestUserMetadata(
+      profileImage: String,
+      website: String,
+      twitter: String,
+      bio: String,
+      fullName: String
+  )
 
 }

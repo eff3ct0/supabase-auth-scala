@@ -19,9 +19,14 @@ object Dependency {
     lazy val genericExtras: ModuleID = "io.circe" %% "circe-generic-extras" % "0.14.4"
   }
 
+  object jwt {
+    lazy val circe: ModuleID = "com.github.jwt-scala" %% "jwt-circe" % Version.JwtCirce
+  }
+
   object Testing {
     lazy val scalaTest: ModuleID = "org.scalatest" %% "scalatest" % Version.ScalaTest % Test
-    lazy val scalaCheck: ModuleID = "org.scalatestplus" %% "scalacheck-1-18" % Version.ScalaCheck % Test
+    lazy val scalaCheck: ModuleID =
+      "org.scalatestplus" %% "scalacheck-1-18" % Version.ScalaCheck % Test
     lazy val scalaTestFlatspec: ModuleID =
       "org.scalatest" %% "scalatest-flatspec" % Version.ScalaTest % Test
 

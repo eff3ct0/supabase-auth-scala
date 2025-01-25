@@ -28,14 +28,13 @@ import cats.effect._
 import cats.implicits.catsSyntaxApplicativeId
 import com.eff3ct.supabase.auth.api.request._
 import com.eff3ct.supabase.auth.api.response._
-import io.circe.Json
 import io.circe.generic.auto._
 import io.circe.syntax.EncoderOps
+import io.circe.{Decoder, Encoder, Json}
 import org.http4s._
 import org.http4s.circe.CirceEntityDecoder._
 import org.http4s.circe._
 import org.http4s.client.Client
-import org.http4s.ember.client.EmberClientBuilder
 import org.typelevel.ci.CIString
 
 import java.util.UUID
@@ -78,15 +77,15 @@ trait SupabaseAuthAPI[F[_]] {
    *
    * @param email The user's email address.
    * @param password The user's password.
-   * @param redirectTo A URL or mobile address to send the user to after they are confirmed.
    * @param metadata Optional metadata to associate with the user.
+   * @param redirectTo A URL or mobile address to send the user to after they are confirmed.
    * @return A `Session`
    */
-  def signUpWithEmail(
+  def signUpWithEmail[T: Encoder: Decoder](
       email: String,
       password: String,
-      redirectTo: Option[String] = None,
-      metadata: Option[Map[String, String]] = None
+      metadata: T = None,
+      redirectTo: Option[String] = None
   ): F[Session]
 
   /**
@@ -117,10 +116,10 @@ trait SupabaseAuthAPI[F[_]] {
    * @param metadata Optional metadata to associate with the user.
    * @return A `Session`
    */
-  def signUpWithPhone(
+  def signUpWithPhone[T: Encoder: Decoder](
       phone: String,
       password: String,
-      metadata: Option[Map[String, String]] = None
+      metadata: T = None
   ): F[Session]
 
   /**
@@ -253,10 +252,16 @@ object SupabaseAuthAPI {
   def apply[F[_]: SupabaseAuthAPI]: SupabaseAuthAPI[F] = implicitly[SupabaseAuthAPI[F]]
 
   def create[F[_]: Async: ClientR](baseUrl: Uri, apiKey: String): F[SupabaseAuthAPI[F]] =
+    create[F](baseUrl, Map("apiKey" -> apiKey))
+
+  def create[F[_]: Async: ClientR](
+      baseUrl: Uri,
+      headers: Map[String, String]
+  ): F[SupabaseAuthAPI[F]] =
     implicitly[ClientR[F]]
       .map { client =>
         implicit val c: Client[F] = client
-        build[F](baseUrl, apiKey)
+        build[F](baseUrl, headers)
       }
       .use(api => Async[F].delay(api))
 
@@ -301,11 +306,11 @@ object SupabaseAuthAPI {
             .withHeaders(buildHeaders)
         }
 
-      override def signUpWithEmail(
+      override def signUpWithEmail[T: Encoder: Decoder](
           email: String,
           password: String,
-          redirectTo: Option[String],
-          metadata: Option[Map[String, String]]
+          metadata: T,
+          redirectTo: Option[String]
       ): F[Session] =
         client.expect[Session] {
           Request[F](Method.POST, baseUrl / "signup" :? redirectTo)
@@ -313,10 +318,10 @@ object SupabaseAuthAPI {
             .withEntity[Json](EmailPasswordRequest(email, password, metadata))
         }
 
-      override def signUpWithPhone(
+      override def signUpWithPhone[T: Encoder: Decoder](
           phone: String,
           password: String,
-          metadata: Option[Map[String, String]]
+          metadata: T
       ): F[Session] =
         client.expect[Session] {
           Request[F](Method.POST, baseUrl / "signup")
@@ -444,36 +449,4 @@ object SupabaseAuthAPI {
           .use(resp => resp.status.pure[F])
 
     }
-}
-
-object Example extends IOApp {
-
-  import SupabaseAuthAPI._
-
-  def run(args: List[String]): IO[ExitCode] = {
-//    val baseUrl: Uri = Uri.unsafeFromString("http://localhost:54321/auth/v1/")
-    val baseUrl: Uri = Uri.unsafeFromString("https://rzactotqkibyymeotzui.supabase.co/auth/v1/")
-    val apiKey: String =
-//      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0"
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ6YWN0b3Rxa2lieXltZW90enVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzcwNTkxOTMsImV4cCI6MjA1MjYzNTE5M30.knztz7okoUciM9kvcxu95ti-0qDwCLa5PbwjpP6peIM"
-    val clientR: Resource[IO, Client[IO]] = EmberClientBuilder.default[IO].build
-    val user =
-      clientR.use { client =>
-        implicit val c: Client[IO] = client
-        val api                    = build[IO](baseUrl, apiKey)
-        for {
-          user <- api.signInWithEmail("test.4@eff3ct.com", "Admin123")
-          t     = implicitly[As[Session, TokenSession]].as(user)
-          token = t.get
-          d <- api.signOut(token.accessToken)
-          a = 0
-
-        } yield d
-      }
-
-    for {
-      user <- user
-      _    <- IO(println(user))
-    } yield ExitCode.Success
-  }
 }

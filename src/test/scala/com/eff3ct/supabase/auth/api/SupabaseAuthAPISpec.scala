@@ -1,12 +1,36 @@
+/*
+ * MIT License
+ *
+ * Copyright (c) 2024 Rafael Fernandez
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 package com.eff3ct.supabase.auth.api
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.eff3ct.supabase.auth.api.response.{Session, TokenSession}
-import com.eff3ct.supabase.auth.test.FancyCatsEffectSuiteTest
+import com.eff3ct.supabase.auth.test._
+import com.eff3ct.supabase.auth.test.resources._
+import org.http4s.Status
 import org.http4s.ember.client.EmberClientBuilder
-import org.http4s.{Status, Uri}
-import org.scalacheck._
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
@@ -15,41 +39,15 @@ class SupabaseAuthAPISpec
     extends AnyFlatSpecLike
     with Matchers
     with FancyCatsEffectSuiteTest
-    with ScalaCheckPropertyChecks {
+    with ScalaCheckPropertyChecks
+    with CustomGenerators
+    with resources {
 
-  // Define a resource that provides an instance of SupabaseAuthAPI
-  val baseUrl: Uri = Uri.unsafeFromString("http://localhost:54321/auth/v1/")
-  val apiKey: String =
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0"
   implicit val client: ClientR[IO] = EmberClientBuilder.default[IO].build
   implicit val api: SupabaseAuthAPI[IO] =
-    SupabaseAuthAPI.create[IO](baseUrl, apiKey).unsafeRunSync()
-
-  // Define a generator for valid email addresses
-  val emailGen: Gen[String] = for {
-    user   <- Gen.alphaNumStr
-    domain <- Gen.oneOf("email.com", "example.com", "supabase.com")
-  } yield s"${user.take(5)}@$domain"
-
-  // Define a generator for valid passwords
-  val passwordGen: Gen[String] =
-    Gen.alphaNumStr.retryUntil(password => password.length >= 6).map(_.take(10))
-
-  // Define a generator for valid phone numbers
-  val phoneGen: Gen[String] = for {
-    countryCode <- Gen.oneOf("+1", "+2", "+3", "+4", "+5", "+6", "+7", "+8", "+9")
-    takeNumber  <- Gen.pick(6, List(1, 2, 3, 4, 5, 6, 7, 8, 9))
-  } yield s"$countryCode${takeNumber.mkString}"
-
-  val phonePasswordGen: Gen[(String, String)] = for {
-    phone    <- phoneGen
-    password <- passwordGen
-  } yield (phone, password)
-
-  val emailPasswordGen: Gen[(String, String)] = for {
-    email    <- emailGen
-    password <- passwordGen
-  } yield (email.toLowerCase, password)
+    SupabaseAuthAPI
+      .create[IO](localhostUri, Map("Authorization" -> s"Bearer $ServiceRoleJwt"))
+      .unsafeRunSync()
 
   "SupabaseAuthAPI" should "sign up a new user with email and password" in {
 
@@ -134,7 +132,7 @@ class SupabaseAuthAPISpec
     }
   }
 
-  it should "signOut an active session" in {
+  it should "sign out an active session" in {
     forAll(emailPasswordGen) { case (email, password) =>
       val response: IO[Status] = for {
         _      <- SupabaseAuthAPI[IO].signUpWithEmail(email, password)

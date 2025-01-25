@@ -24,8 +24,8 @@
 
 package com.eff3ct.supabase.auth.api
 
-import io.circe.Decoder
 import io.circe.generic.extras._
+import io.circe.{Decoder, Json}
 
 import java.util.UUID
 
@@ -64,7 +64,17 @@ object response {
       email: String,
       emailVerified: Boolean,
       phoneVerified: Boolean,
-      sub: UUID
+      sub: UUID,
+      metadata: Json
+  )
+
+  @ConfiguredJsonCodec
+  case class UserMetadataType[T](
+      email: String,
+      emailVerified: Boolean,
+      phoneVerified: Boolean,
+      sub: UUID,
+      metadata: Option[T]
   )
 
   /**
@@ -117,24 +127,41 @@ object response {
       user: UserSession
   ) extends Session
 
-  @ConfiguredJsonCodec
-  case class NoneResponse(message: None.type = None)
+  private val filterPhone: UserSession => UserSession = { us =>
+    us.copy(phone = us.phone.filter(_.nonEmpty))
+  }
+  private val filterPhoneSession: TokenSession => TokenSession = ts =>
+    ts.copy(user = filterPhone(ts.user))
 
-  implicit val sessionDecoder: Decoder[Session] = Decoder.instance { c =>
-    if (c.downField("access_token").succeeded) c.as[TokenSession]
-    else c.as[UserSession]
+  private[api] implicit val sessionDecoder: Decoder[Session] = Decoder.instance { c =>
+    if (c.downField("access_token").succeeded) c.as[TokenSession].map(filterPhoneSession)
+    else c.as[UserSession].map(filterPhone)
   }
 
-  trait As[I, O] {
-    def as(input: I): Option[O]
-  }
+  private[api] implicit val userMetadataDecoder: Decoder[UserMetadata] =
+    Decoder.instance { c =>
+      val email         = c.downField("email").as[String]
+      val emailVerified = c.downField("email_verified").as[Boolean]
+      val phoneVerified = c.downField("phone_verified").as[Boolean]
+      val sub           = c.downField("sub").as[UUID]
 
-  implicit val sessionAsTokenSession: As[Session, TokenSession] = {
-    case t: TokenSession => Some(t)
-    case _               => None
-  }
+      val keyNames: Vector[String] =
+        Vector("email", "email_verified", "phone_verified", "sub")
 
-  implicit class ImplicitAs[I](input: I) {
-    def /=>[O: As[I, *]]: Option[O] = implicitly[As[I, O]].as(input)
-  }
+      val metadata: Option[Json] = for {
+        json <- c.as[Json].toOption
+        obj  <- json.asObject
+        newObj   = keyNames.foldLeft(obj)((acc, key) => acc.remove(key))
+        metadata = newObj.toJson
+      } yield metadata
+
+      for {
+        em  <- email
+        emv <- emailVerified
+        pv  <- phoneVerified
+        s   <- sub
+      } yield UserMetadata(em, emv, pv, s, metadata.getOrElse(Json.Null))
+
+    }
+
 }
