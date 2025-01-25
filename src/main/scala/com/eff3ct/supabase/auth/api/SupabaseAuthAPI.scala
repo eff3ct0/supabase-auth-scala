@@ -39,6 +39,11 @@ import org.typelevel.ci.CIString
 
 import java.util.UUID
 
+/**
+ * A trait for interacting with the Supabase Auth API.
+ *
+ * @tparam F The effect type.
+ */
 trait SupabaseAuthAPI[F[_]] {
 
   /**
@@ -247,13 +252,25 @@ trait SupabaseAuthAPI[F[_]] {
 
 object SupabaseAuthAPI {
 
-  private def client[F[_]: Client]: Client[F] = implicitly[Client[F]]
-
   def apply[F[_]: SupabaseAuthAPI]: SupabaseAuthAPI[F] = implicitly[SupabaseAuthAPI[F]]
 
+  /**
+   * Creates a new instance of SupabaseAuthAPI.
+   *
+   * @param baseUrl The base URL of the Supabase Auth API.
+   * @param apiKey The API key for the Supabase Auth API.
+   * @return A new instance of SupabaseAuthAPI.
+   */
   def create[F[_]: Async: ClientR](baseUrl: Uri, apiKey: String): F[SupabaseAuthAPI[F]] =
     create[F](baseUrl, Map("apiKey" -> apiKey))
 
+  /**
+   * Creates a new instance of SupabaseAuthAPI.
+   *
+   * @param baseUrl The base URL of the Supabase Auth API.
+   * @param headers The headers to include in the request.
+   * @return A new instance of SupabaseAuthAPI.
+   */
   def create[F[_]: Async: ClientR](
       baseUrl: Uri,
       headers: Map[String, String]
@@ -265,9 +282,23 @@ object SupabaseAuthAPI {
       }
       .use(api => Async[F].delay(api))
 
+  /**
+   * Creates a new pure instance of SupabaseAuthAPI.
+   *
+   * @param baseUrl The base URL of the Supabase Auth API.
+   * @param apiKey The API key for the Supabase Auth API.
+   * @return A new instance of SupabaseAuthAPI.
+   */
   def build[F[_]: Async: Client](baseUrl: Uri, apiKey: String): SupabaseAuthAPI[F] =
     build[F](baseUrl, Map("apiKey" -> apiKey))
 
+  /**
+   * Creates a new  pure instance of SupabaseAuthAPI.
+   *
+   * @param baseUrl The base URL of the Supabase Auth API.
+   * @param headers The headers to include in the request.
+   * @return A new instance of SupabaseAuthAPI.
+   */
   def build[F[_]: Async: Client](baseUrl: Uri, headers: Map[String, String]): SupabaseAuthAPI[F] =
     new SupabaseAuthAPI[F] {
 
@@ -449,4 +480,6 @@ object SupabaseAuthAPI {
           .use(resp => resp.status.pure[F])
 
     }
+
+  private def client[F[_]: Client]: Client[F] = implicitly[Client[F]]
 }
