@@ -39,10 +39,11 @@ jobs:
       - name: Debug Coverage Files
         run: find . -name "scoverage.xml" || echo "No coverage file found"
 
-      - name: Upload to Codecov
-        uses: codecov/codecov-action@v3
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+          slug: eff3ct0/supabase-auth-scala
           files: target/scala-*/scoverage-report/scoverage.xml
           fail_ci_if_error: true
 
