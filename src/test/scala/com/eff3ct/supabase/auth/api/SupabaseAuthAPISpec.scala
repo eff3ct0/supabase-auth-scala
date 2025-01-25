@@ -149,17 +149,18 @@ class SupabaseAuthAPISpec
 
   it should "sign out an active session" in
     forAll(emailPasswordGen) { case (email, password) =>
-      val response: IO[Status] = for {
+      val session: IO[TokenSession] = for {
         _      <- SupabaseAuthAPI[IO].signUpWithEmail(email, password)
         result <- SupabaseAuthAPI[IO].signInWithEmail(email, password)
         res = result match {
           case t: TokenSession => t
           case _               => fail("Unexpected result. Expected TokenSession")
         }
-        signOutResult: Status <- SupabaseAuthAPI[IO].signOut(res.accessToken)
-      } yield signOutResult
+      } yield res
 
-      response shouldBe Status.NoContent
+      val signOutResult: IO[Status] =
+        SupabaseAuthAPI[IO].signOut(session.unsafeRunSync().accessToken)
+      signOutResult shouldBe Status.NoContent
     }
 
 }

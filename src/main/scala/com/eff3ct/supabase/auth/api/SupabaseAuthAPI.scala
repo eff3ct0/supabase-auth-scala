@@ -25,7 +25,7 @@
 package com.eff3ct.supabase.auth.api
 
 import cats.effect._
-import cats.implicits.catsSyntaxApplicativeId
+import cats.implicits._
 import com.eff3ct.supabase.auth.api.request._
 import com.eff3ct.supabase.auth.api.response._
 import io.circe.generic.auto._
