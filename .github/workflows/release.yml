@@ -42,11 +42,14 @@ jobs:
       - name: Build and Test with Coverage
         run: sbt clean coverage test coverageReport coverageAggregate
 
+      - name: Debug Coverage Files
+        run: find . -name "scoverage.xml" || echo "No coverage file found"
+
       - name: Upload to Codecov
         uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./target/scala-*/scoverage-report/scoverage.xml
+          files: target/scala-*/scoverage-report/scoverage.xml
           fail_ci_if_error: true
 
       - name: Upload test results

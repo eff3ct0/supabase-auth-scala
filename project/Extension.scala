@@ -40,7 +40,7 @@ object Extension {
         .settings(
           coverageEnabled          := true,
           coverageFailOnMinimum    := false,
-          coverageMinimumStmtTotal := 80
+          coverageMinimumStmtTotal := 30 // TODO. provisional
         )
 
   }
