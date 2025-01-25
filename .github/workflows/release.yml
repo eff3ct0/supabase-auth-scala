@@ -7,16 +7,15 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: 18 # Ajusta según la versión que necesites
-          cache: 'npm'
 
       - name: Initialize Supabase
         run: |
