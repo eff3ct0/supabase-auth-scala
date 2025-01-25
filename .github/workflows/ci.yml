@@ -1,13 +1,9 @@
-# This workflow uses actions that are not certified by GitHub.
-# They are provided by a third-party and are governed by
-# separate terms of service, privacy policy, and support
-# documentation.
-
 name: Scala CI
 on:
   pull_request:
   push:
     branches: [ "master" ]
+
 jobs:
   build:
     strategy:
@@ -19,21 +15,34 @@ jobs:
           - os: ubuntu-latest
             java: 11
     runs-on: ubuntu-latest
+
     steps:
+      - uses: actions/checkout@v4
+
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: 18
 
-      - uses: actions/checkout@v4
-
-      - name: Initialize Supabase
-        run: |
-          npx supabase init
+      - name: Cache Node.js modules
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
 
       - name: Start Supabase
         run: |
-          npx supabase start
+          npx supabase start &
+
+      - name: Wait for Supabase to be ready
+        run: |
+          until curl --silent --fail http://localhost:54323; do
+            echo "Waiting for Supabase..."
+            sleep 5
+          done
+          echo "Supabase is ready."
 
       - uses: actions/setup-java@v4
         with:
@@ -42,12 +51,35 @@ jobs:
 
       - uses: sbt/setup-sbt@v1
 
+      - name: Cache SBT dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.ivy2/cache
+            ~/.sbt
+            ~/.coursier
+          key: ${{ runner.os }}-sbt-${{ hashFiles('**/build.sbt') }}
+          restore-keys: ${{ runner.os }}-sbt-
+
       - name: Create header and run scalafmt
         run: sbt headerCreateAll scalafmtAll
 
-      - name: Build and Test
-        run: sbt -v +test
+      - name: Build and Test with Coverage
+        run: sbt clean coverage test coverageReport coverageAggregate
 
-      # Optional: This step uploads information to the GitHub dependency graph and unblocking Dependabot alerts for the repository
-      #- name: Upload dependency graph
-      # uses: scalacenter/sbt-dependency-submission@ab086b50c947c9774b70f39fc7f6e20ca2706c91
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./target/scala-*/scoverage-report/scoverage.xml
+          fail_ci_if_error: true
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-results
+          path: target/test-reports
+
+      # Optional: Upload dependency graph
+      # - name: Upload dependency graph
+      #   uses: scalacenter/sbt-dependency-submission@ab086b50c947c9774b70f39fc7f6e20ca2706c91

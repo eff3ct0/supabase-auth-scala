@@ -1,8 +1,8 @@
 name: Release
 on:
   push:
-    branches: [master, main]
-    tags: ["*"]
+    branches: [ master, main ]
+    tags: [ "*" ]
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -32,6 +32,22 @@ jobs:
           cache: sbt
 
       - uses: sbt/setup-sbt@v1
+
+      - name: Build and Test with Coverage
+        run: sbt clean coverage test coverageReport coverageAggregate
+
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./target/scala-*/scoverage-report/scoverage.xml
+          fail_ci_if_error: true
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-results
+          path: target/test-reports
 
       - name: Release
         run: sbt ci-release
