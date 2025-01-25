@@ -28,22 +28,26 @@ import cats.implicits._
 import cats.{MonadError, MonadThrow}
 import com.eff3ct.supabase.auth.api.response.{UserMetadata, UserMetadataType}
 import io.circe.Decoder.Result
-import io.circe.{Decoder, Error, Json}
+import io.circe.{Decoder, DecodingFailure, Json}
 
 object implicits {
 
-  implicit def monadErrorResult[F[_], E <: Error](implicit
-      m: MonadError[F, E]
-  ): MonadError[F, Throwable] = new MonadError[F, Throwable] {
-    def pure[B](x: B): F[B] = m.pure(x)
+  implicit def monadThrowResult[E <: DecodingFailure](implicit
+      m: MonadError[Result, DecodingFailure]
+  ): MonadThrow[Result] = new MonadThrow[Result] {
+    override def pure[A](x: A): Result[A] = m.pure(x)
 
-    override def raiseError[A](e: Throwable): F[A] = m.raiseError(throw e)
+    override def map[A, B](fa: Result[A])(f: A => B): Result[B] = fa.map(f)
 
-    override def handleErrorWith[A](fa: F[A])(f: Throwable => F[A]): F[A] = m.handleErrorWith(fa)(f)
+    override def flatMap[A, B](fa: Result[A])(f: A => Result[B]): Result[B] = fa.flatMap(f)
 
-    override def flatMap[A, B](fa: F[A])(f: A => F[B]): F[B] = m.flatMap(fa)(f)
+    override def tailRecM[A, B](a: A)(f: A => Result[Either[A, B]]): Result[B] = m.tailRecM(a)(f)
 
-    override def tailRecM[A, B](a: A)(f: A => F[Either[A, B]]): F[B] = m.tailRecM(a)(f)
+    override def raiseError[A](e: Throwable): Result[A] =
+      m.raiseError(DecodingFailure.fromThrowable(e, Nil))
+
+    override def handleErrorWith[A](fa: Result[A])(f: Throwable => Result[A]): Result[A] =
+      m.handleErrorWith(fa)(f)
   }
 
   implicit class UserMetadataOps(val um: UserMetadata) {

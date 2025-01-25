@@ -68,7 +68,6 @@ object response {
       metadata: Json
   )
 
-  @ConfiguredJsonCodec
   case class UserMetadataType[T](
       email: String,
       emailVerified: Boolean,

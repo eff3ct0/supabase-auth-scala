@@ -7,6 +7,7 @@ lazy val root =
     .withBetterMonadicFor
     .withHeader
     .withSonatypePublish
+    .withCoverage
     .settings(
       name := "supabase-auth",
       libraryDependencies ++=
