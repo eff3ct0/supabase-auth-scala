@@ -22,26 +22,31 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Docker Compose
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y docker-compose
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18 # Ajusta según la versión que necesites
+          cache: 'npm'
 
-      - name: Clone Supabase repository
+      - name: Install dependencies
         run: |
-          git clone --depth 1 https://github.com/supabase/supabase
-          cd supabase/docker
-          cp .env.example .env
-          docker compose pull
+          npm install
 
-      - name: Start Supabase services
+      - name: Initialize Supabase
         run: |
-          cd supabase/docker
-          docker compose up -d
-          docker ps
+          npx supabase init
+
+      - name: Start Supabase
+        run: |
+          npx supabase start &
 
       - name: Wait for Supabase to be ready
-        run: sleep 20
+        run: |
+          until curl --silent --fail http://localhost:54323; do
+            echo "Waiting for Supabase to start..."
+            sleep 5
+          done
+          echo "Supabase is ready."
 
       - uses: actions/setup-java@v4
         with:
