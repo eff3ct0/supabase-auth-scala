@@ -1,5 +1,7 @@
 import de.heikoseeberger.sbtheader.HeaderPlugin
 import sbt._
+import scoverage.ScoverageKeys._
+import scoverage.ScoverageSbtPlugin
 
 object Extension {
 
@@ -30,6 +32,15 @@ object Extension {
       project
         .settings(
           SonatypePublish.projectSettings
+        )
+
+    def withCoverage: Project =
+      project
+        .enablePlugins(ScoverageSbtPlugin)
+        .settings(
+          coverageEnabled          := true,
+          coverageFailOnMinimum    := false,
+          coverageMinimumStmtTotal := 30 // TODO. provisional
         )
 
   }

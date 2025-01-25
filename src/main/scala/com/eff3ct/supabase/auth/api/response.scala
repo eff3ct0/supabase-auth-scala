@@ -25,13 +25,14 @@
 package com.eff3ct.supabase.auth.api
 
 import io.circe.generic.extras._
+import io.circe.{Decoder, Json}
 
 import java.util.UUID
 
 object response {
 
-  private[response] implicit val config: Configuration =
-    Configuration.default.withSnakeCaseMemberNames
+  @ConfiguredJsonCodec
+  sealed trait Session
 
   @ConfiguredJsonCodec
   case class IdentityData(
@@ -63,9 +64,31 @@ object response {
       email: String,
       emailVerified: Boolean,
       phoneVerified: Boolean,
-      sub: UUID
+      sub: UUID,
+      metadata: Json
   )
 
+  case class UserMetadataType[T](
+      email: String,
+      emailVerified: Boolean,
+      phoneVerified: Boolean,
+      sub: UUID,
+      metadata: Option[T]
+  )
+
+  /**
+   * @param id The user's unique ID.
+   * @param aud The audience of the JWT.
+   * @param role The user's role.
+   * @param email The user's email address.
+   * @param phone The user's phone number.
+   * @param appMetadata The app metadata.
+   * @param userMetadata The user metadata.
+   * @param identities The user's identities.
+   * @param createdAt The timestamp of when the user was created.
+   * @param updatedAt The timestamp of when the user was last updated.
+   * @param isAnonymous Whether the user is anonymous.
+   */
   @ConfiguredJsonCodec
   case class UserSession(
       id: UUID,
@@ -79,7 +102,7 @@ object response {
       createdAt: String,
       updatedAt: String,
       isAnonymous: Boolean
-  )
+  ) extends Session
 
   /**
    * @param accessToken The access token that can be used to make authenticated requests to the API.
@@ -92,7 +115,7 @@ object response {
    * @param user The user session object.
    */
   @ConfiguredJsonCodec
-  case class Session(
+  case class TokenSession(
       accessToken: String,
       tokenType: String,
       expiresIn: Int,
@@ -101,6 +124,43 @@ object response {
       providerToken: Option[String],
       providerRefreshToken: Option[String],
       user: UserSession
-  )
+  ) extends Session
+
+  private val filterPhone: UserSession => UserSession = { us =>
+    us.copy(phone = us.phone.filter(_.nonEmpty))
+  }
+  private val filterPhoneSession: TokenSession => TokenSession = ts =>
+    ts.copy(user = filterPhone(ts.user))
+
+  private[api] implicit val sessionDecoder: Decoder[Session] = Decoder.instance { c =>
+    if (c.downField("access_token").succeeded) c.as[TokenSession].map(filterPhoneSession)
+    else c.as[UserSession].map(filterPhone)
+  }
+
+  private[api] implicit val userMetadataDecoder: Decoder[UserMetadata] =
+    Decoder.instance { c =>
+      val email         = c.downField("email").as[String]
+      val emailVerified = c.downField("email_verified").as[Boolean]
+      val phoneVerified = c.downField("phone_verified").as[Boolean]
+      val sub           = c.downField("sub").as[UUID]
+
+      val keyNames: Vector[String] =
+        Vector("email", "email_verified", "phone_verified", "sub")
+
+      val metadata: Option[Json] = for {
+        json <- c.as[Json].toOption
+        obj  <- json.asObject
+        newObj   = keyNames.foldLeft(obj)((acc, key) => acc.remove(key))
+        metadata = newObj.toJson
+      } yield metadata
+
+      for {
+        em  <- email
+        emv <- emailVerified
+        pv  <- phoneVerified
+        s   <- sub
+      } yield UserMetadata(em, emv, pv, s, metadata.getOrElse(Json.Null))
+
+    }
 
 }

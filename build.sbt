@@ -7,6 +7,7 @@ lazy val root =
     .withBetterMonadicFor
     .withHeader
     .withSonatypePublish
+    .withCoverage
     .settings(
       name := "supabase-auth",
       libraryDependencies ++=
@@ -16,8 +17,13 @@ lazy val root =
           circe.generic,
           circe.parser,
           circe.genericExtras,
+          jwt.circe,
           http4s.circe,
           http4s.dsl,
-          http4s.emberClient
+          http4s.emberClient,
+          /** Test */
+          Testing.scalaTest,
+          Testing.scalaTestFlatspec,
+          Testing.scalaCheck
         )
     )

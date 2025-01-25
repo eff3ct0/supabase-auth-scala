@@ -1,22 +1,60 @@
 name: Release
 on:
   push:
-    branches: [master, main]
-    tags: ["*"]
+    branches: [ master, main ]
+    tags: [ "*" ]
 jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Checkout code
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Initialize Supabase
+        run: |
+          npx supabase init
+
+      - name: Start Supabase
+        run: |
+          npx supabase start
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 11
           cache: sbt
+
       - uses: sbt/setup-sbt@v1
-      - run: sbt ci-release
+
+      - name: Build and Test with Coverage
+        run: sbt clean coverage test coverageReport coverageAggregate
+
+      - name: Debug Coverage Files
+        run: find . -name "scoverage.xml" || echo "No coverage file found"
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: eff3ct0/supabase-auth-scala
+          files: target/scala-*/scoverage-report/scoverage.xml
+          fail_ci_if_error: true
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-results
+          path: target/test-reports
+
+      - name: Release
+        run: sbt ci-release
         env:
           PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
           PGP_SECRET: ${{ secrets.PGP_SECRET }}

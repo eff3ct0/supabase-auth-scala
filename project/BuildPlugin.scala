@@ -19,6 +19,7 @@ object BuildPlugin extends AutoPlugin {
     run / fork               := true,
     Test / fork              := true,
     Test / parallelExecution := true,
+    Test / scalacOptions     := Seq("-Ymacro-annotations"),
     scalafmtOnCompile        := true,
     updateOptions := updateOptions.value
       .withCachedResolution(cachedResolution = false),

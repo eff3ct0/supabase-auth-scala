@@ -22,37 +22,36 @@
  * SOFTWARE.
  */
 
-package com.eff3ct.supabase.auth.api
+package com.eff3ct.supabase.auth.test
 
-import io.circe.Json
-import io.circe.generic.extras.ConfiguredJsonCodec
+import cats.effect.IO
+import cats.effect.unsafe.implicits.global
+import org.scalactic.source
+import org.scalatest.{Assertion, Assertions}
 
-object request {
+trait FancyCatsEffectSuiteTest {
+  self: Assertions =>
 
-  case class EmailPasswordRequest(
-      email: String,
-      password: String,
-      data: Json = Json.Null
-  )
-  case class PhonePasswordRequest(
-      phone: String,
-      password: String,
-      data: Json = Json.Null
-  )
-  case class SendMagicLinkRequest(email: String, createUser: Boolean)
-  case class SendMobileOtpRequest(phone: String, createUser: Boolean)
-  case class VerifyMobileOtpRequest(phone: String, token: String, `type`: String)
-  case class InviteUserByEmailRequest(email: String, data: Option[Map[String, String]])
-  case class ResetPasswordForEmailRequest(email: String)
+  def assertIO[A, B](
+      obtained: IO[A],
+      expected: B
+  )(implicit pos: source.Position, ev: B <:< A): Assertion =
+    assertIO(obtained, IO(expected))
 
-  @ConfiguredJsonCodec
-  case class ShouldSoftDeleteRequest(shouldSoftDelete: Boolean)
+  def assertIO[A, B](
+      obtained: IO[A],
+      expected: IO[B]
+  )(implicit pos: source.Position, ev: B <:< A): Assertion =
+    (for {
+      a <- obtained
+      b <- expected
+    } yield assert(a == ev(b))).unsafeRunSync()
 
-  case class UserAttributesRequest[T](
-      email: Option[String] = None,
-      phone: Option[String] = None,
-      password: Option[String] = None,
-      data: Option[T] = None
-  )
+  implicit class AssertionOps[A](val a: IO[A]) {
+    def shouldBe[B](expected: B)(implicit pos: source.Position, ev: B <:< A): Assertion =
+      assertIO(a, expected)
 
+    def shouldBe[B](expected: IO[B])(implicit pos: source.Position, ev: B <:< A): Assertion =
+      assertIO(a, expected)
+  }
 }

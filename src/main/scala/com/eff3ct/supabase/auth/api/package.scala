@@ -22,37 +22,29 @@
  * SOFTWARE.
  */
 
-package com.eff3ct.supabase.auth.api
+package com.eff3ct.supabase.auth
 
-import io.circe.Json
-import io.circe.generic.extras.ConfiguredJsonCodec
+import cats.effect.Resource
+import io.circe.generic.extras.Configuration
+import io.circe.syntax.EncoderOps
+import io.circe.{Encoder, Json}
+import org.http4s.Uri
+import org.http4s.client.Client
 
-object request {
+package object api {
+  type ClientR[F[_]] = Resource[F, Client[F]]
 
-  case class EmailPasswordRequest(
-      email: String,
-      password: String,
-      data: Json = Json.Null
-  )
-  case class PhonePasswordRequest(
-      phone: String,
-      password: String,
-      data: Json = Json.Null
-  )
-  case class SendMagicLinkRequest(email: String, createUser: Boolean)
-  case class SendMobileOtpRequest(phone: String, createUser: Boolean)
-  case class VerifyMobileOtpRequest(phone: String, token: String, `type`: String)
-  case class InviteUserByEmailRequest(email: String, data: Option[Map[String, String]])
-  case class ResetPasswordForEmailRequest(email: String)
+  private[api] implicit val config: Configuration =
+    Configuration.default.withSnakeCaseMemberNames
 
-  @ConfiguredJsonCodec
-  case class ShouldSoftDeleteRequest(shouldSoftDelete: Boolean)
+  private[api] implicit def asJson[T](t: T)(implicit enc: Encoder[T]): Json = t.asJson
 
-  case class UserAttributesRequest[T](
-      email: Option[String] = None,
-      phone: Option[String] = None,
-      password: Option[String] = None,
-      data: Option[T] = None
-  )
+  private[api] implicit class ImplicitURI(uri: Uri) {
+    def :?(redirectTo: Option[String]): Uri =
+      redirectTo.fold(uri)(redirectTo => uri.withQueryParam("redirect_to", Uri.encode(redirectTo)))
+
+    def :+?(params: Map[String, String]): Uri =
+      params.foldLeft(uri)((acc, param) => acc.withQueryParam(param._1, param._2))
+  }
 
 }
