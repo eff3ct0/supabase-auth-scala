@@ -1,4 +1,5 @@
 import de.heikoseeberger.sbtheader.HeaderPlugin
+import sbt.Keys._
 import sbt._
 import scoverage.ScoverageKeys._
 import scoverage.ScoverageSbtPlugin
@@ -31,6 +32,7 @@ object Extension {
     def withSonatypePublish: Project =
       project
         .settings(
+          publish / skip := false,
           SonatypePublish.projectSettings
         )
 

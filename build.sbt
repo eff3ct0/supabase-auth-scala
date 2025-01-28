@@ -2,7 +2,7 @@ import Dependency._
 import Extension._
 lazy val root =
   (project in file("."))
-    .settings(BuildPlugin.projectSettings)
+    .enablePlugins(BuildPlugin)
     .withKindProjector
     .withBetterMonadicFor
     .withHeader
