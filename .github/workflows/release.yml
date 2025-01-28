@@ -36,9 +36,6 @@ jobs:
       - name: Build and Test with Coverage
         run: sbt clean coverage test coverageReport coverageAggregate
 
-      - name: Debug Coverage Files
-        run: find . -name "scoverage.xml" || echo "No coverage file found"
-
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
         with:
