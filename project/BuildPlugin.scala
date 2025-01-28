@@ -10,7 +10,7 @@ object BuildPlugin extends AutoPlugin {
   override def trigger: PluginTrigger = allRequirements
 
   override def projectSettings: Seq[Setting[_]] = Seq(
-    organizationName         := "supabase-auth",
+    organizationName         := "eff3ct",
     organization             := "com.eff3ct",
     scalaVersion             := Version.Scala,
     crossScalaVersions       := Vector(scalaVersion.value),

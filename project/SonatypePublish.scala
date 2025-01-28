@@ -8,7 +8,7 @@ import scala.collection.Seq
 object SonatypePublish {
 
   def projectSettings: Seq[Setting[_]] = Seq(
-    ThisBuild / publish / skip         := false,
+    ThisBuild / publish / skip         := true,
     ThisBuild / versionScheme          := Some("early-semver"),
     ThisBuild / sonatypeCredentialHost := sonatypeCentralHost,
     ThisBuild / organization           := "com.eff3ct",
